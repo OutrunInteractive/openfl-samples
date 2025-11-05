@@ -39,6 +39,7 @@ class Main extends Sprite
 	private var bottomRightCopy:Bitmap;
 	private var bottomRightBitmapData:BitmapData;
 	private var maskShape:Sprite;
+	private var leftTop:Sprite;
 
 	public function new()
 	{
@@ -55,6 +56,12 @@ class Main extends Sprite
 		var bitmapData = Assets.getBitmapData("assets/wabbit_alpha.png");
 		tileset = new Tileset(bitmapData);
 		tileset.addRect(bitmapData.rect);
+
+		// Container for the upper-left quadrant (make it a child of Main)
+		leftTop = new Sprite();
+		leftTop.x = 0;
+		leftTop.y = 0;
+		addChild(leftTop);
 
 		// Create copy bitmap
 		copyBitmapData = new BitmapData(Std.int(stage.stageWidth / 2), Std.int(stage.stageHeight / 2), true, 0);
@@ -92,16 +99,15 @@ class Main extends Sprite
 		tilemap.tileAlphaEnabled = false;
 		tilemap.tileBlendModeEnabled = false;
 		tilemap.tileColorTransformEnabled = false;
-		addChild(tilemap);
-		tilemap.mask = maskShape; // Apply mask to tilemap instead of stageCopy
+		leftTop.addChild(tilemap);
+		leftTop.mask = maskShape; // Apply mask to the leftTop container
 		#else
 		indices = new Vector<Int>();
 		transforms = new Vector<Float>();
-		this.mask = maskShape; // Apply mask to main sprite for non-tilemap version
+		leftTop.mask = maskShape; // Apply mask to leftTop for non-tilemap version
 		#end
 
-		// Remove this line since we no longer mask stageCopy
-		// stageCopy.mask = maskShape;
+		// stageCopy remains unmasked (upper-right is free)
 
 		#if !html5
 		fps = new FPS();
@@ -213,21 +219,22 @@ class Main extends Sprite
 		}
 
 		#if (!flash && !use_tilemap)
-		graphics.clear();
-		graphics.beginFill(0xFFFFFF);
-		graphics.drawRect(0, 0, stage.stageWidth, stage.stageHeight);
-		graphics.beginBitmapFill(tileset.bitmapData, null, false);
-		graphics.drawQuads(tileset.rectData, indices, transforms);
+		// Draw the non-tilemap content into the leftTop container instead of Main
+		leftTop.graphics.clear();
+		leftTop.graphics.beginFill(0xFFFFFF);
+		leftTop.graphics.drawRect(0, 0, stage.stageWidth / 2, stage.stageHeight / 2);
+		leftTop.graphics.beginBitmapFill(tileset.bitmapData, null, false);
+		leftTop.graphics.drawQuads(tileset.rectData, indices, transforms);
 		#end
 
-		// Copy the left half to the right half
-		copyBitmapData.draw(this, null, null, null, null, true);
+		// Copy the left half to the right half (draw the leftTop container)
+		copyBitmapData.draw(leftTop, null, null, null, null, true);
 
 		// Update blurred copy
-		blurredBitmapData.draw(this, null, null, null, null, true);
+		blurredBitmapData.draw(leftTop, null, null, null, null, true);
 
 		// Update bottom-right blurred copy (10x10)
-		bottomRightBitmapData.draw(this, null, null, null, null, true);
+		bottomRightBitmapData.draw(leftTop, null, null, null, null, true);
 
 		if (addingBunnies)
 		{
