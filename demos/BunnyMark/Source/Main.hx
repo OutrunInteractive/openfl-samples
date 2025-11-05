@@ -36,9 +36,9 @@ class Main extends Sprite
 		bunnies = new Array();
 
 		minX = 0;
-		maxX = stage.stageWidth;
+		maxX = Std.int(stage.stageWidth / 2);  // Convert to int
 		minY = 0;
-		maxY = stage.stageHeight;
+		maxY = Std.int(stage.stageHeight / 2); // Convert to int
 		gravity = 0.5;
 
 		var bitmapData = Assets.getBitmapData("assets/wabbit_alpha.png");
@@ -46,7 +46,7 @@ class Main extends Sprite
 		tileset.addRect(bitmapData.rect);
 
 		#if (flash || use_tilemap)
-		tilemap = new Tilemap(stage.stageWidth, stage.stageHeight, tileset);
+		tilemap = new Tilemap(stage.stageWidth / 2, stage.stageHeight / 2, tileset);  // Half dimensions
 		tilemap.tileAlphaEnabled = false;
 		tilemap.tileBlendModeEnabled = false;
 		tilemap.tileColorTransformEnabled = false;
@@ -199,12 +199,12 @@ class Main extends Sprite
 
 	private function stage_onResize(event:Event):Void
 	{
-		maxX = stage.stageWidth;
-		maxY = stage.stageHeight;
+		maxX = Std.int(stage.stageWidth / 2);  // Convert to int
+		maxY = Std.int(stage.stageHeight / 2); // Convert to int
 
 		#if (flash || use_tilemap)
-		tilemap.width = stage.stageWidth;
-		tilemap.height = stage.stageHeight;
+		tilemap.width = stage.stageWidth / 2;   // Tilemap can handle float
+		tilemap.height = stage.stageHeight / 2;  // Tilemap can handle float
 		#end
 	}
 }
