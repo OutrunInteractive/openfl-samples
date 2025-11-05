@@ -63,6 +63,21 @@ class Main extends Sprite
 		stageCopy.y = 0; // Align to top
 		addChild(stageCopy);
 
+		// Initialize blurred copies (bottom-left 5x5, bottom-right 10x10)
+		blurredBitmapData = new BitmapData(Std.int(stage.stageWidth / 2), Std.int(stage.stageHeight / 2), true, 0);
+		blurredCopy = new Bitmap(blurredBitmapData);
+		blurredCopy.x = 0;
+		blurredCopy.y = stage.stageHeight / 2;
+		blurredCopy.filters = [new BlurFilter(5, 5)];
+		addChild(blurredCopy);
+
+		bottomRightBitmapData = new BitmapData(Std.int(stage.stageWidth / 2), Std.int(stage.stageHeight / 2), true, 0);
+		bottomRightCopy = new Bitmap(bottomRightBitmapData);
+		bottomRightCopy.x = stage.stageWidth / 2;
+		bottomRightCopy.y = stage.stageHeight / 2;
+		bottomRightCopy.filters = [new BlurFilter(10, 10)];
+		addChild(bottomRightCopy);
+
 		// Create circular mask
 		maskShape = new Sprite();
 		maskShape.graphics.beginFill(0xFF0000);
