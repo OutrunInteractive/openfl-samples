@@ -14,6 +14,8 @@ import openfl.events.MouseEvent;
 import openfl.utils.Assets;
 import openfl.Vector;
 import openfl.filters.BlurFilter;
+import openfl.display.GradientType;
+import openfl.geom.Rectangle;
 
 class Main extends Sprite
 {
@@ -40,6 +42,8 @@ class Main extends Sprite
 	private var bottomRightBitmapData:BitmapData;
 	private var maskShape:Sprite;
 	private var leftTop:Sprite;
+	private var leftWidth:Int;
+	private var leftHeight:Int;
 
 	public function new()
 	{
@@ -57,6 +61,10 @@ class Main extends Sprite
 		tileset = new Tileset(bitmapData);
 		tileset.addRect(bitmapData.rect);
 
+		// compute integer quadrant dimensions (avoid fractional pixels)
+		leftWidth = Std.int(stage.stageWidth / 2);
+		leftHeight = Std.int(stage.stageHeight / 2);
+
 		// Container for the upper-left quadrant (make it a child of Main)
 		leftTop = new Sprite();
 		leftTop.x = 0;
@@ -64,47 +72,51 @@ class Main extends Sprite
 		addChild(leftTop);
 
 		// Create copy bitmap
-		copyBitmapData = new BitmapData(Std.int(stage.stageWidth / 2), Std.int(stage.stageHeight / 2), true, 0);
+		copyBitmapData = new BitmapData(leftWidth, leftHeight, true, 0);
 		stageCopy = new Bitmap(copyBitmapData);
-		stageCopy.x = stage.stageWidth / 2;
+		stageCopy.x = leftWidth;
 		stageCopy.y = 0; // Align to top
 		addChild(stageCopy);
 
 		// Initialize blurred copies (bottom-left 5x5, bottom-right 10x10)
-		blurredBitmapData = new BitmapData(Std.int(stage.stageWidth / 2), Std.int(stage.stageHeight / 2), true, 0);
+		blurredBitmapData = new BitmapData(leftWidth, leftHeight, true, 0);
 		blurredCopy = new Bitmap(blurredBitmapData);
 		blurredCopy.x = 0;
-		blurredCopy.y = stage.stageHeight / 2;
+		blurredCopy.y = leftHeight;
 		blurredCopy.filters = [new BlurFilter(5, 5)];
 		addChild(blurredCopy);
 
-		bottomRightBitmapData = new BitmapData(Std.int(stage.stageWidth / 2), Std.int(stage.stageHeight / 2), true, 0);
+		bottomRightBitmapData = new BitmapData(leftWidth, leftHeight, true, 0);
 		bottomRightCopy = new Bitmap(bottomRightBitmapData);
-		bottomRightCopy.x = stage.stageWidth / 2;
-		bottomRightCopy.y = stage.stageHeight / 2;
+		bottomRightCopy.x = leftWidth;
+		bottomRightCopy.y = leftHeight;
 		bottomRightCopy.filters = [new BlurFilter(10, 10)];
 		addChild(bottomRightCopy);
 
 		// Create circular mask
 		maskShape = new Sprite();
 		maskShape.graphics.beginFill(0xFF0000);
-		maskShape.graphics.drawCircle(stage.stageWidth / 4, stage.stageHeight / 4, Math.min(stage.stageWidth / 4, stage.stageHeight / 4));
+		// center inside the integer quadrant and use integer radius
+		maskShape.graphics.drawCircle(leftWidth / 2, leftHeight / 2, Std.int(Math.min(leftWidth, leftHeight) / 2));
 		maskShape.graphics.endFill();
-		maskShape.x = 0; // Move mask to left half
+		// position mask over the upper-right quadrant (stageCopy)
+		maskShape.x = leftWidth;
+		maskShape.y = 0;
 		addChild(maskShape);
 
 		#if (flash || use_tilemap)
-		tilemap = new Tilemap(stage.stageWidth / 2, stage.stageHeight / 2, tileset);
+		tilemap = new Tilemap(leftWidth, leftHeight, tileset);
 		tilemap.y = 0; // Align to top
 		tilemap.tileAlphaEnabled = false;
 		tilemap.tileBlendModeEnabled = false;
 		tilemap.tileColorTransformEnabled = false;
 		leftTop.addChild(tilemap);
-		leftTop.mask = maskShape; // Apply mask to the leftTop container
+		// leftTop.mask = maskShape;
 		#else
 		indices = new Vector<Int>();
 		transforms = new Vector<Float>();
-		leftTop.mask = maskShape; // Apply mask to leftTop for non-tilemap version
+		// apply mask to the upper-right bitmap copy for non-tilemap builds
+		stageCopy.mask = maskShape;
 		#end
 
 		// stageCopy remains unmasked (upper-right is free)
@@ -173,9 +185,32 @@ class Main extends Sprite
 		gamepad.onButtonUp.add(gamepad_onButtonUp);
 	}
 
+	private function drawGradient():Void
+	{
+		#if (!flash && !use_tilemap)
+		leftTop.graphics.clear();
+		var matrix = new openfl.geom.Matrix();
+		matrix.createGradientBox(leftWidth, leftHeight, 0, 0, 0);
+		leftTop.graphics.beginGradientFill(GradientType.LINEAR, [0xFF0000, 0x00FF00], // Red to Green
+			[1, 1], // Alpha values
+			[0, 255], // Ratio
+			matrix);
+		leftTop.graphics.drawRect(0, 0, leftWidth, leftHeight);
+		leftTop.graphics.endFill();
+		#end
+	}
+
 	private function stage_onEnterFrame(event:Event):Void
 	{
 		var bunny;
+
+		drawGradient(); // Add gradient before drawing bunnies
+
+		#if (!flash && !use_tilemap)
+		// Draw bunnies directly without white background
+		leftTop.graphics.beginBitmapFill(tileset.bitmapData, null, false);
+		leftTop.graphics.drawQuads(tileset.rectData, indices, transforms);
+		#end
 
 		for (i in 0...bunnies.length)
 		{
@@ -220,11 +255,9 @@ class Main extends Sprite
 
 		#if (!flash && !use_tilemap)
 		// Draw the non-tilemap content into the leftTop container instead of Main
-		leftTop.graphics.clear();
-		leftTop.graphics.beginFill(0xFFFFFF);
-		leftTop.graphics.drawRect(0, 0, stage.stageWidth / 2, stage.stageHeight / 2);
-		leftTop.graphics.beginBitmapFill(tileset.bitmapData, null, false);
-		leftTop.graphics.drawQuads(tileset.rectData, indices, transforms);
+		// leftTop.graphics.clear();
+		// leftTop.graphics.beginBitmapFill(tileset.bitmapData, null, false);
+		// leftTop.graphics.drawQuads(tileset.rectData, indices, transforms);
 		#end
 
 		// Copy the left half to the right half (draw the leftTop container)
@@ -262,41 +295,48 @@ class Main extends Sprite
 
 	private function stage_onResize(event:Event):Void
 	{
-		maxX = Std.int(stage.stageWidth / 2);
-		maxY = Std.int(stage.stageHeight / 2);
+		// recompute integer quadrant dims to avoid bleed/overflow
+		leftWidth = Std.int(stage.stageWidth / 2);
+		leftHeight = Std.int(stage.stageHeight / 2);
+		maxX = leftWidth;
+		maxY = leftHeight;
 
 		// Update mask
 		maskShape.graphics.clear();
 		maskShape.graphics.beginFill(0xFF0000);
-		maskShape.graphics.drawCircle(stage.stageWidth / 4, stage.stageHeight / 4, Math.min(stage.stageWidth / 4, stage.stageHeight / 4));
+		maskShape.graphics.drawCircle(leftWidth / 2, leftHeight / 2, Std.int(Math.min(leftWidth, leftHeight) / 2));
 		maskShape.graphics.endFill();
-		maskShape.x = 0; // Keep mask on left half when resizing
+		// keep mask positioned over the upper-right quadrant
+		maskShape.x = leftWidth;
+		maskShape.y = 0;
 
 		// Update copy bitmap
 		copyBitmapData.dispose();
-		copyBitmapData = new BitmapData(Std.int(stage.stageWidth / 2), Std.int(stage.stageHeight / 2), true, 0);
+		copyBitmapData = new BitmapData(leftWidth, leftHeight, true, 0);
 		stageCopy.bitmapData = copyBitmapData;
-		stageCopy.x = stage.stageWidth / 2;
+		stageCopy.x = leftWidth;
 		stageCopy.y = 0;
 
 		// Update blurred copy
 		blurredBitmapData.dispose();
-		blurredBitmapData = new BitmapData(Std.int(stage.stageWidth / 2), Std.int(stage.stageHeight / 2), true, 0);
+		blurredBitmapData = new BitmapData(leftWidth, leftHeight, true, 0);
 		blurredCopy.bitmapData = blurredBitmapData;
 		blurredCopy.x = 0;
-		blurredCopy.y = stage.stageHeight / 2;
+		blurredCopy.y = leftHeight;
 
 		// Update bottom-right blurred copy
 		bottomRightBitmapData.dispose();
-		bottomRightBitmapData = new BitmapData(Std.int(stage.stageWidth / 2), Std.int(stage.stageHeight / 2), true, 0);
+		bottomRightBitmapData = new BitmapData(leftWidth, leftHeight, true, 0);
 		bottomRightCopy.bitmapData = bottomRightBitmapData;
-		bottomRightCopy.x = stage.stageWidth / 2;
-		bottomRightCopy.y = stage.stageHeight / 2;
+		bottomRightCopy.x = leftWidth;
+		bottomRightCopy.y = leftHeight;
 
 		#if (flash || use_tilemap)
-		tilemap.width = stage.stageWidth / 2;
-		tilemap.height = stage.stageHeight / 2;
+		tilemap.width = leftWidth;
+		tilemap.height = leftHeight;
 		tilemap.y = 0; // Keep aligned to top
 		#end
+		// redraw gradient to match new integer dims
+		drawGradient();
 	}
 }
