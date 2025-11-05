@@ -38,6 +38,7 @@ class Main extends Sprite
     private var blurredBitmapData:BitmapData;
     private var bottomRightCopy:Bitmap;
     private var bottomRightBitmapData:BitmapData;
+    private var maskShape:Sprite;
 
     public function new()
     {
@@ -78,6 +79,13 @@ class Main extends Sprite
         bottomRightCopy.filters = [new BlurFilter(10, 10)];
         addChild(bottomRightCopy);
 
+        // Create circular mask
+        maskShape = new Sprite();
+        maskShape.graphics.beginFill(0xFF0000);
+        maskShape.graphics.drawCircle(stage.stageWidth / 4, stage.stageHeight / 4, Math.min(stage.stageWidth / 4, stage.stageHeight / 4));
+        maskShape.graphics.endFill();
+        addChild(maskShape);
+
         #if (flash || use_tilemap)
         tilemap = new Tilemap(stage.stageWidth / 2, stage.stageHeight / 2, tileset);
         tilemap.y = 0; // Align to top
@@ -85,9 +93,11 @@ class Main extends Sprite
         tilemap.tileBlendModeEnabled = false;
         tilemap.tileColorTransformEnabled = false;
         addChild(tilemap);
+        tilemap.mask = maskShape;  // Add mask to tilemap
         #else
         indices = new Vector<Int>();
         transforms = new Vector<Float>();
+        this.mask = maskShape;  // Add mask to main sprite
         #end
 
         #if !html5
@@ -244,6 +254,12 @@ class Main extends Sprite
     {
         maxX = Std.int(stage.stageWidth / 2);
         maxY = Std.int(stage.stageHeight / 2);
+
+        // Update mask
+        maskShape.graphics.clear();
+        maskShape.graphics.beginFill(0xFF0000);
+        maskShape.graphics.drawCircle(stage.stageWidth / 4, stage.stageHeight / 4, Math.min(stage.stageWidth / 4, stage.stageHeight / 4));
+        maskShape.graphics.endFill();
 
         // Update copy bitmap
         copyBitmapData.dispose();
