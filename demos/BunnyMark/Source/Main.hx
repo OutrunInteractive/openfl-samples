@@ -14,6 +14,7 @@ import openfl.events.MouseEvent;
 import openfl.utils.Assets;
 import openfl.Vector;
 import openfl.filters.BlurFilter;
+import openfl.filters.ColorMatrixFilter;
 import openfl.display.GradientType;
 import openfl.geom.Rectangle;
 
@@ -41,9 +42,11 @@ class Main extends Sprite
 	private var bottomRightCopy:Bitmap;
 	private var bottomRightBitmapData:BitmapData;
 	private var maskShape:Sprite;
+	private var lowerMask:Sprite;
 	private var leftTop:Sprite;
 	private var leftWidth:Int;
 	private var leftHeight:Int;
+	private var bigBunny:Bitmap;
 
 	public function new()
 	{
@@ -77,6 +80,7 @@ class Main extends Sprite
 		stageCopy.x = leftWidth;
 		stageCopy.y = 0; // Align to top
 		addChild(stageCopy);
+		copyBitmapData.disposeImage();
 
 		// Initialize blurred copies (bottom-left 5x5, bottom-right 10x10)
 		blurredBitmapData = new BitmapData(leftWidth, leftHeight, true, 0);
@@ -85,15 +89,26 @@ class Main extends Sprite
 		blurredCopy.y = leftHeight;
 		blurredCopy.filters = [new BlurFilter(5, 5)];
 		addChild(blurredCopy);
+		blurredBitmapData.disposeImage();
 
 		bottomRightBitmapData = new BitmapData(leftWidth, leftHeight, true, 0);
 		bottomRightCopy = new Bitmap(bottomRightBitmapData);
 		bottomRightCopy.x = leftWidth;
 		bottomRightCopy.y = leftHeight;
-		bottomRightCopy.filters = [new BlurFilter(10, 10)];
+		// blur + sepia color matrix
+		bottomRightCopy.filters = [
+			new BlurFilter(10, 10),
+			new ColorMatrixFilter([
+				0.393, 0.769, 0.189, 0, 0,
+				0.349, 0.686, 0.168, 0, 0,
+				0.272, 0.534, 0.131, 0, 0,
+				    0,     0,     0, 1, 0
+			])
+		];
 		addChild(bottomRightCopy);
+		bottomRightBitmapData.disposeImage();
 
-		// Create circular mask
+		// Create circular mask (upper-right)
 		maskShape = new Sprite();
 		maskShape.graphics.beginFill(0xFF0000);
 		// center inside the integer quadrant and use integer radius
@@ -103,6 +118,16 @@ class Main extends Sprite
 		maskShape.x = leftWidth;
 		maskShape.y = 0;
 		addChild(maskShape);
+
+		// Create circular mask for lower-left (apply to blurredCopy)
+		lowerMask = new Sprite();
+		lowerMask.graphics.beginFill(0xFF0000);
+		lowerMask.graphics.drawCircle(leftWidth / 2, leftHeight / 2, Std.int(Math.min(leftWidth, leftHeight) / 2));
+		lowerMask.graphics.endFill();
+		// position mask over the lower-left quadrant
+		lowerMask.x = 0;
+		lowerMask.y = leftHeight;
+		addChild(lowerMask);
 
 		#if (flash || use_tilemap)
 		tilemap = new Tilemap(leftWidth, leftHeight, tileset);
@@ -118,6 +143,17 @@ class Main extends Sprite
 		// apply mask to the upper-right bitmap copy for non-tilemap builds
 		stageCopy.mask = maskShape;
 		#end
+
+		// apply lower-left mask to the blurred bottom-left bitmap
+		blurredCopy.mask = lowerMask;
+
+		// Big bunny in front of bouncing bunnies (centered, 5x scale)
+		bigBunny = new Bitmap(tileset.bitmapData);
+		bigBunny.scaleX = 5.0;
+		bigBunny.scaleY = 5.0;
+		bigBunny.x = Std.int(leftWidth / 2 - (tileset.bitmapData.width * 5.0) / 2);
+		bigBunny.y = Std.int(leftHeight / 2 - (tileset.bitmapData.height * 5.0) / 2);
+		leftTop.addChild(bigBunny);
 
 		// stageCopy remains unmasked (upper-right is free)
 
@@ -338,5 +374,12 @@ class Main extends Sprite
 		#end
 		// redraw gradient to match new integer dims
 		drawGradient();
+
+		// reposition big bunny to remain centered in the upper-left quadrant
+		if (bigBunny != null)
+		{
+			bigBunny.x = Std.int(leftWidth / 2 - (tileset.bitmapData.width * 5.0) / 2);
+			bigBunny.y = Std.int(leftHeight / 2 - (tileset.bitmapData.height * 5.0) / 2);
+		}
 	}
 }
