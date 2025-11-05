@@ -2,6 +2,8 @@ package;
 
 import lime.ui.Gamepad;
 import lime.ui.GamepadButton;
+import openfl.display.Bitmap;
+import openfl.display.BitmapData;
 import openfl.display.FPS;
 import openfl.display.Sprite;
 import openfl.display.Tile;
@@ -29,6 +31,9 @@ class Main extends Sprite
 	private var indices:Vector<Int>;
 	private var transforms:Vector<Float>;
 	#end
+	private var copyBitmapData:BitmapData;
+	private var stageCopy:Bitmap;
+
 	public function new()
 	{
 		super();
@@ -36,17 +41,25 @@ class Main extends Sprite
 		bunnies = new Array();
 
 		minX = 0;
-		maxX = Std.int(stage.stageWidth / 2);  // Convert to int
+		maxX = Std.int(stage.stageWidth / 2);
 		minY = 0;
-		maxY = Std.int(stage.stageHeight / 2); // Convert to int
+		maxY = Std.int(stage.stageHeight / 2);
 		gravity = 0.5;
 
 		var bitmapData = Assets.getBitmapData("assets/wabbit_alpha.png");
 		tileset = new Tileset(bitmapData);
 		tileset.addRect(bitmapData.rect);
 
+		// Create copy bitmap
+		copyBitmapData = new BitmapData(Std.int(stage.stageWidth / 2), Std.int(stage.stageHeight / 2), true, 0);
+		stageCopy = new Bitmap(copyBitmapData);
+		stageCopy.x = stage.stageWidth / 2;
+		stageCopy.y = 0; // Align to top
+		addChild(stageCopy);
+
 		#if (flash || use_tilemap)
-		tilemap = new Tilemap(stage.stageWidth / 2, stage.stageHeight / 2, tileset);  // Half dimensions
+		tilemap = new Tilemap(stage.stageWidth / 2, stage.stageHeight / 2, tileset);
+		tilemap.y = 0; // Align to top
 		tilemap.tileAlphaEnabled = false;
 		tilemap.tileBlendModeEnabled = false;
 		tilemap.tileColorTransformEnabled = false;
@@ -173,6 +186,9 @@ class Main extends Sprite
 		graphics.drawQuads(tileset.rectData, indices, transforms);
 		#end
 
+		// Copy the left half to the right half
+		copyBitmapData.draw(this, null, null, null, null, true);
+
 		if (addingBunnies)
 		{
 			#if hide_fps
@@ -199,12 +215,20 @@ class Main extends Sprite
 
 	private function stage_onResize(event:Event):Void
 	{
-		maxX = Std.int(stage.stageWidth / 2);  // Convert to int
-		maxY = Std.int(stage.stageHeight / 2); // Convert to int
+		maxX = Std.int(stage.stageWidth / 2);
+		maxY = Std.int(stage.stageHeight / 2);
+
+		// Update copy bitmap
+		copyBitmapData.dispose();
+		copyBitmapData = new BitmapData(Std.int(stage.stageWidth / 2), Std.int(stage.stageHeight / 2), true, 0);
+		stageCopy.bitmapData = copyBitmapData;
+		stageCopy.x = stage.stageWidth / 2;
+		stageCopy.y = 0; // Keep aligned to top
 
 		#if (flash || use_tilemap)
-		tilemap.width = stage.stageWidth / 2;   // Tilemap can handle float
-		tilemap.height = stage.stageHeight / 2;  // Tilemap can handle float
+		tilemap.width = stage.stageWidth / 2;
+		tilemap.height = stage.stageHeight / 2;
+		tilemap.y = 0; // Keep aligned to top
 		#end
 	}
 }
